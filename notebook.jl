@@ -17,6 +17,13 @@ end
 # ╔═╡ 875e4f2c-80d6-11eb-00e8-5362515a5d82
 using VoronoiFVM, ForwardDiff, Plots, Markdown, LaTeXStrings, ExtendableGrids, PlutoUI, GridVisualize, PyPlot, Printf, ElasticArrays
 
+# ╔═╡ e7d187f2-ee2b-4e7c-bf33-3d4351beac3f
+md"""
+This is a supplementary notebook for 
+- Petr Vágner, Michal Pavelka, Jürgen Fuhrmann, Václav Klika. *A multiscale thermodynamic generalization of the Maxwell-Stefan diffusion equations and of the dusty gas model*, submitted to Intl J Heat and Mass Transfer on (??-06-2020).
+
+"""
+
 # ╔═╡ a4c5960a-ece3-4f86-a761-c7f8169c7a7f
 PlutoUI.TableOfContents(title="Non-isothermal dusty gas model")
 
@@ -2622,6 +2629,7 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
+# ╟─e7d187f2-ee2b-4e7c-bf33-3d4351beac3f
 # ╟─a4c5960a-ece3-4f86-a761-c7f8169c7a7f
 # ╠═875e4f2c-80d6-11eb-00e8-5362515a5d82
 # ╟─694fcd71-4691-45bb-a213-e2d83a19adf2
