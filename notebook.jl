@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.8
+# v0.19.9
 
 using Markdown
 using InteractiveUtils
@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 875e4f2c-80d6-11eb-00e8-5362515a5d82
-using VoronoiFVM, ForwardDiff, Plots, Markdown, LaTeXStrings, ExtendableGrids, PlutoUI, GridVisualize, PyPlot, Printf, ElasticArrays
+using VoronoiFVM, ForwardDiff, Plots, Markdown, LaTeXStrings, ExtendableGrids, PlutoUI, GridVisualize, PyPlot, Printf, ElasticArrays,StaticArrays
 
 # ╔═╡ e7d187f2-ee2b-4e7c-bf33-3d4351beac3f
 md"""
@@ -338,28 +338,28 @@ md"""
 # ╔═╡ 7f675aad-c74e-4e04-a673-8d8eea759b64
 begin
 	# physical constants
-    kB = 1.3806503e-23 # J/K/#
-    hbar= 1.054571817e-34 # Js
-	N_Avo = 6.02214076e23 # #/mol
-	Rgas = kB*N_Avo # J/K/mol
+    const kB = 1.3806503e-23 # J/K/#
+    const hbar= 1.054571817e-34 # Js
+	const N_Avo = 6.02214076e23 # #/mol
+	const Rgas = kB*N_Avo # J/K/mol
 	# indexing of unknowns
-    iT, ia, ib = 1,2,3
+    const iT, ia, ib = 1,2,3
 	# 
-	porosity_turtuosity_ratio = 0.5 # 1
+	const porosity_turtuosity_ratio = 0.5 # 1
 	# effective diffusion coefficients
-	Dab, DaD, DbD =  porosity_turtuosity_ratio*[1e-6, 2e-6, 3e-6] # m^2/s
+	const Dab, DaD, DbD =  porosity_turtuosity_ratio*[1e-6, 2e-6, 3e-6] # m^2/s
 	# heat conductivity of dust
-	lambda = 1.0e1 # W/K/m
+	const lambda = 1.0e1 # W/K/m
 	# heat capacitance / R
-	cVD = 1.0 # dust
-    cV = [0.0, 1.5, 2.5] # gasses [cV/R] = 1
+	const cVD = 1.0 # dust
+    const cV = [0.0, 1.5, 2.5] # gasses [cV/R] = 1
 	# heat capacity ratio
-    gamma = [0.0 , 5.0/3.0, 1.4] # 1
+    const gamma = [0.0 , 5.0/3.0, 1.4] # 1
 	# atomic masses
-	m = 1.054571817e-34*[0.0 , 20.18 , 2*14.00] # kg/molecule  #Ne, N2 
+	const m = 1.054571817e-34*[0.0 , 20.18 , 2*14.00] # kg/molecule  #Ne, N2 
 	#
-	T0 = 298.15 # K ~ 25 grad C
-	p0 = 1.01e5 # Pa
+	const T0 = 298.15 # K ~ 25 grad C
+	const p0 = 1.01e5 # Pa
 end;
 
 # ╔═╡ 11294978-2b7d-41be-aaea-56f4d4054dfa
@@ -403,7 +403,7 @@ f[ia]=u[ia]
 f[ib]=u[ib]
 f[iT]=kB*N_Avo*(
 		 cV[ia]*u[ia]
-   		+cV[ia]*u[ib]
+   		+cV[ib]*u[ib]
    		+cVD
 	)*u[iT]
 end
@@ -417,10 +417,12 @@ Discrete system constructor
 function discrete_system(fluxes)
 	physics=VoronoiFVM.Physics(num_species=3,
                                flux=fluxes,
-                               storage=storage!,
+                               storage=storage!
                                )
     sys=VoronoiFVM.System(grid,physics)
-	[enable_species!(sys,i,[1]) for i in [iT,ia, ib]]
+	for i in [iT,ia, ib]
+			enable_species!(sys,i,[1]) 
+	end
 	return sys
 end
 
@@ -492,9 +494,9 @@ M^{\textrm{num}}_{kl}
 
 # ╔═╡ 5dd552bb-8de2-4074-9924-25e0204edc6f
 function implicitJ(Fa, Fb, nae, nbe, ne)
-	M = [-(nbe/ne/Dab + 1/DaD)      nae/ne/Dab;
+	M = @SArray[-(nbe/ne/Dab + 1/DaD)      nae/ne/Dab;
          nbe/ne/Dab                 -(nae/ne/Dab + 1/DbD)]
-    return M\[Fa, Fb] 
+    return M\@SArray[Fa, Fb] 
 end
 
 # ╔═╡ d82853d0-827f-11eb-15d1-bbc6ed16997d
@@ -511,9 +513,9 @@ M^{-1,\textrm{num}}_{kl}
 # ╔═╡ 70472b0e-57aa-46d4-b123-2e667402781c
 function explicitJ(Fa, Fb, nae, nbe, ne)
 	detM = (1/DaD/DbD + nae/ne/DaD/Dab + nbe/ne/DbD/Dab)
-    Minv = detM^(-1)*[-(nae/ne/Dab + 1/DbD)      -nae/ne/Dab;
+    Minv = detM^(-1)*@SArray[-(nae/ne/Dab + 1/DbD)      -nae/ne/Dab;
          			  -nbe/ne/Dab                -(nbe/ne/Dab + 1/DaD)]
-	return Minv*[Fa,Fb]
+	return Minv*@SArray[Fa,Fb]
 end
 
 # ╔═╡ 9fddf8d0-3623-43b8-b4d6-af77beff918e
@@ -537,10 +539,9 @@ function sedan(g, u1, u2)
 end
 
 # ╔═╡ ba43a804-7432-4035-a042-114e452c10cd
-function fluxes!(f,u0,edge,J::Function)
-	u=unknowns(edge,u0)
+function fluxes!(f,u,edge,J::TJ) where TJ<:Function
 	#
-    g_ab = log(u[iT,2])-log(u[iT,1])
+	g_ab = log(u[iT,2])-log(u[iT,1])
 	#
 	F_a = -1*cV[ia]*(gamma[ia]-1)*sedan(g_ab, u[ia,1], u[ia,2])
     F_b = -1*cV[ib]*(gamma[ib]-1)*sedan(g_ab, u[ib,1], u[ib,2])
@@ -552,6 +553,7 @@ function fluxes!(f,u0,edge,J::Function)
 	# 
     f[ia] = Ja 
     f[ib] = Jb
+	
     g_T = kB*N_Avo/lambda*(gamma[ia]*cV[ia]*f[ia] + gamma[ib]*cV[ib]*f[ib])
     f[iT]= lambda*sedan(-g_T, u[iT,1], u[iT,2])
 end
@@ -815,6 +817,7 @@ function temperature_step_evolution(T_step)
 	control.tol_relative = 1e-9
 	#
 	sys, steady = stationary_solution(imfluxes!, Tstep_Dbcs)
+	#check_allocs!(sys,false)
 	#
 	T0 = sys.boundary_values[iT,1]
 	T1, nal, nbl = Tnanb([T0 + T_step, Tstep_Dbcs[1][2], Tstep_Dbcs[1][3]])
@@ -870,7 +873,7 @@ function plot_evolution(sys, sol)
     PyPlot.title(@sprintf("\$T\\in\$[%.2f,%.2f]",Tmax,Tmin))
     vTemp = collect(Tmin : (Tmax-Tmin)/100 : Tmax)
     tTemp = collect(Tmin: (Tmax-Tmin) / 10:Tmax)
-    cntTemp = PyPlot.contourf(gridfunc(X, t, Temp)..., vTemp, cmap=ColorMap("bwr"))
+    cntTemp = PyPlot.contourf(gridfunc(X, t, Temp)..., vTemp, cmap=ColorMap("hot"))
     for c in cntTemp.collections
         c.set_edgecolor("face")
     end
@@ -1193,6 +1196,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 VoronoiFVM = "82b139dc-5afc-11e9-35da-9b9bdfd336f3"
 
 [compat]
@@ -1204,6 +1208,7 @@ LaTeXStrings = "~1.3.0"
 Plots = "~1.27.6"
 PlutoUI = "~0.7.38"
 PyPlot = "~2.10.0"
+StaticArrays = "~1.4.7"
 VoronoiFVM = "~0.16.3"
 """
 
@@ -2249,9 +2254,9 @@ version = "0.6.1"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "cd56bf18ed715e8b09f06ef8c6b781e6cdc49911"
+git-tree-sha1 = "2bbd9f2e40afd197a1379aef05e0d85dba649951"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.4"
+version = "1.4.7"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
