@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.8
+# v0.19.9
 
 using Markdown
 using InteractiveUtils
@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 875e4f2c-80d6-11eb-00e8-5362515a5d82
-using VoronoiFVM, ForwardDiff, Plots, Markdown, LaTeXStrings, ExtendableGrids, PlutoUI, GridVisualize, PyPlot, Printf, ElasticArrays
+using VoronoiFVM, ForwardDiff, Plots, Markdown, LaTeXStrings, ExtendableGrids, PlutoUI, GridVisualize, PyPlot, Printf, ElasticArrays,StaticArrays
 
 # ╔═╡ e7d187f2-ee2b-4e7c-bf33-3d4351beac3f
 md"""
@@ -338,28 +338,28 @@ md"""
 # ╔═╡ 7f675aad-c74e-4e04-a673-8d8eea759b64
 begin
 	# physical constants
-    kB = 1.3806503e-23 # J/K/#
-    hbar= 1.054571817e-34 # Js
-	N_Avo = 6.02214076e23 # #/mol
-	Rgas = kB*N_Avo # J/K/mol
+    const kB = 1.3806503e-23 # J/K/#
+    const hbar= 1.054571817e-34 # Js
+	const N_Avo = 6.02214076e23 # #/mol
+	const Rgas = kB*N_Avo # J/K/mol
 	# indexing of unknowns
-    iT, ia, ib = 1,2,3
+    const iT, ia, ib = 1,2,3
 	# 
-	porosity_turtuosity_ratio = 0.5 # 1
+	const porosity_turtuosity_ratio = 0.5 # 1
 	# effective diffusion coefficients
-	Dab, DaD, DbD =  porosity_turtuosity_ratio*[1e-6, 2e-6, 3e-6] # m^2/s
+	const Dab, DaD, DbD =  porosity_turtuosity_ratio*[1e-6, 2e-6, 3e-6] # m^2/s
 	# heat conductivity of dust
-	lambda = 1.0e1 # W/K/m
+	const lambda = 1.0e1 # W/K/m
 	# heat capacitance / R
-	cVD = 1.0 # dust
-    cV = [0.0, 1.5, 2.5] # gasses [cV/R] = 1
+	const cVD = 1.0 # dust
+    const cV = [0.0, 1.5, 2.5] # gasses [cV/R] = 1
 	# heat capacity ratio
-    gamma = [0.0 , 5.0/3.0, 1.4] # 1
+    const gamma = [0.0 , 5.0/3.0, 1.4] # 1
 	# atomic masses
-	m = 1.054571817e-34*[0.0 , 20.18 , 2*14.00] # kg/molecule  #Ne, N2 
+	const m = 1.054571817e-34*[0.0 , 20.18 , 2*14.00] # kg/molecule  #Ne, N2 
 	#
-	T0 = 298.15 # K ~ 25 grad C
-	p0 = 1.01e5 # Pa
+	const T0 = 298.15 # K ~ 25 grad C
+	const p0 = 1.01e5 # Pa
 end;
 
 # ╔═╡ 11294978-2b7d-41be-aaea-56f4d4054dfa
@@ -403,7 +403,7 @@ f[ia]=u[ia]
 f[ib]=u[ib]
 f[iT]=kB*N_Avo*(
 		 cV[ia]*u[ia]
-   		+cV[ia]*u[ib]
+   		+cV[ib]*u[ib]
    		+cVD
 	)*u[iT]
 end
@@ -417,10 +417,12 @@ Discrete system constructor
 function discrete_system(fluxes)
 	physics=VoronoiFVM.Physics(num_species=3,
                                flux=fluxes,
-                               storage=storage!,
+                               storage=storage!
                                )
     sys=VoronoiFVM.System(grid,physics)
-	[enable_species!(sys,i,[1]) for i in [iT,ia, ib]]
+	for i in [iT,ia, ib]
+			enable_species!(sys,i,[1]) 
+	end
 	return sys
 end
 
@@ -492,9 +494,9 @@ M^{\textrm{num}}_{kl}
 
 # ╔═╡ 5dd552bb-8de2-4074-9924-25e0204edc6f
 function implicitJ(Fa, Fb, nae, nbe, ne)
-	M = [-(nbe/ne/Dab + 1/DaD)      nae/ne/Dab;
+	M = @SArray[-(nbe/ne/Dab + 1/DaD)      nae/ne/Dab;
          nbe/ne/Dab                 -(nae/ne/Dab + 1/DbD)]
-    return M\[Fa, Fb] 
+    return M\@SArray[Fa, Fb] 
 end
 
 # ╔═╡ d82853d0-827f-11eb-15d1-bbc6ed16997d
@@ -511,9 +513,9 @@ M^{-1,\textrm{num}}_{kl}
 # ╔═╡ 70472b0e-57aa-46d4-b123-2e667402781c
 function explicitJ(Fa, Fb, nae, nbe, ne)
 	detM = (1/DaD/DbD + nae/ne/DaD/Dab + nbe/ne/DbD/Dab)
-    Minv = detM^(-1)*[-(nae/ne/Dab + 1/DbD)      -nae/ne/Dab;
+    Minv = detM^(-1)*@SArray[-(nae/ne/Dab + 1/DbD)      -nae/ne/Dab;
          			  -nbe/ne/Dab                -(nbe/ne/Dab + 1/DaD)]
-	return Minv*[Fa,Fb]
+	return Minv*@SArray[Fa,Fb]
 end
 
 # ╔═╡ 9fddf8d0-3623-43b8-b4d6-af77beff918e
@@ -537,10 +539,9 @@ function sedan(g, u1, u2)
 end
 
 # ╔═╡ ba43a804-7432-4035-a042-114e452c10cd
-function fluxes!(f,u0,edge,J::Function)
-	u=unknowns(edge,u0)
+function fluxes!(f,u,edge,J::TJ) where TJ<:Function
 	#
-    g_ab = log(u[iT,2])-log(u[iT,1])
+	g_ab = log(u[iT,2])-log(u[iT,1])
 	#
 	F_a = -1*cV[ia]*(gamma[ia]-1)*sedan(g_ab, u[ia,1], u[ia,2])
     F_b = -1*cV[ib]*(gamma[ib]-1)*sedan(g_ab, u[ib,1], u[ib,2])
@@ -552,6 +553,7 @@ function fluxes!(f,u0,edge,J::Function)
 	# 
     f[ia] = Ja 
     f[ib] = Jb
+	
     g_T = kB*N_Avo/lambda*(gamma[ia]*cV[ia]*f[ia] + gamma[ib]*cV[ib]*f[ib])
     f[iT]= lambda*sedan(-g_T, u[iT,1], u[iT,2])
 end
@@ -815,6 +817,7 @@ function temperature_step_evolution(T_step)
 	control.tol_relative = 1e-9
 	#
 	sys, steady = stationary_solution(imfluxes!, Tstep_Dbcs)
+	#check_allocs!(sys,false)
 	#
 	T0 = sys.boundary_values[iT,1]
 	T1, nal, nbl = Tnanb([T0 + T_step, Tstep_Dbcs[1][2], Tstep_Dbcs[1][3]])
@@ -870,7 +873,7 @@ function plot_evolution(sys, sol)
     PyPlot.title(@sprintf("\$T\\in\$[%.2f,%.2f]",Tmax,Tmin))
     vTemp = collect(Tmin : (Tmax-Tmin)/100 : Tmax)
     tTemp = collect(Tmin: (Tmax-Tmin) / 10:Tmax)
-    cntTemp = PyPlot.contourf(gridfunc(X, t, Temp)..., vTemp, cmap=ColorMap("bwr"))
+    cntTemp = PyPlot.contourf(gridfunc(X, t, Temp)..., vTemp, cmap=ColorMap("hot"))
     for c in cntTemp.collections
         c.set_edgecolor("face")
     end
@@ -1193,6 +1196,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 VoronoiFVM = "82b139dc-5afc-11e9-35da-9b9bdfd336f3"
 
 [compat]
@@ -1204,6 +1208,7 @@ LaTeXStrings = "~1.3.0"
 Plots = "~1.27.6"
 PlutoUI = "~0.7.38"
 PyPlot = "~2.10.0"
+StaticArrays = "~1.4.7"
 VoronoiFVM = "~0.16.3"
 """
 
@@ -1211,8 +1216,9 @@ VoronoiFVM = "~0.16.3"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.2"
+julia_version = "1.8.0-rc1"
 manifest_format = "2.0"
+project_hash = "666150fbeaf4955a7de11cf3803b81b27c0f646f"
 
 [[deps.AbstractAlgebra]]
 deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Markdown", "Random", "RandomExtensions", "SparseArrays", "Test"]
@@ -1244,6 +1250,7 @@ version = "2.3.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
+version = "1.1.1"
 
 [[deps.ArnoldiMethod]]
 deps = ["LinearAlgebra", "Random", "StaticArrays"]
@@ -1357,6 +1364,7 @@ version = "3.43.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
+version = "0.5.2+0"
 
 [[deps.CompositeTypes]]
 git-tree-sha1 = "d5b014b216dc891e81fea299638e4c10c657b582"
@@ -1456,8 +1464,9 @@ uuid = "5b8099bc-c8ec-5219-889f-1d9e522a28bf"
 version = "0.5.9"
 
 [[deps.Downloads]]
-deps = ["ArgTools", "LibCURL", "NetworkOptions"]
+deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+version = "1.6.0"
 
 [[deps.DynamicPolynomials]]
 deps = ["DataStructures", "Future", "LinearAlgebra", "MultivariatePolynomials", "MutableArithmetics", "Pkg", "Reexport", "Test"]
@@ -1523,6 +1532,9 @@ deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "80ced645013a5dbdc52cf70329399c35ce007fae"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.13.0"
+
+[[deps.FileWatching]]
+uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
@@ -1800,10 +1812,12 @@ version = "0.15.14"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
+version = "0.6.3"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
+version = "7.81.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -1812,6 +1826,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
+version = "1.10.2+0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1902,6 +1917,7 @@ version = "1.0.3"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
+version = "2.28.0+0"
 
 [[deps.Measures]]
 git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
@@ -1931,6 +1947,7 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
+version = "2022.2.1"
 
 [[deps.MultivariatePolynomials]]
 deps = ["ChainRulesCore", "DataStructures", "LinearAlgebra", "MutableArithmetics"]
@@ -1951,6 +1968,7 @@ version = "0.3.7"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
+version = "1.2.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "fe29afdef3d0c4a8286128d4e45cc50621b1e43d"
@@ -1966,10 +1984,12 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
+version = "0.3.20+0"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
+version = "0.8.1+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2027,6 +2047,7 @@ version = "0.40.1+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+version = "1.8.0"
 
 [[deps.PkgVersion]]
 deps = ["Pkg"]
@@ -2172,6 +2193,7 @@ version = "0.5.3"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+version = "0.7.0"
 
 [[deps.SciMLBase]]
 deps = ["ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "RecipesBase", "RecursiveArrayTools", "StaticArrays", "Statistics", "Tables", "TreeViews"]
@@ -2249,9 +2271,9 @@ version = "0.6.1"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "cd56bf18ed715e8b09f06ef8c6b781e6cdc49911"
+git-tree-sha1 = "2bbd9f2e40afd197a1379aef05e0d85dba649951"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.4"
+version = "1.4.7"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2300,6 +2322,7 @@ version = "4.4.1"
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+version = "1.0.0"
 
 [[deps.TableTraits]]
 deps = ["IteratorInterfaceExtensions"]
@@ -2316,6 +2339,7 @@ version = "1.7.0"
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
+version = "1.10.0"
 
 [[deps.TermInterface]]
 git-tree-sha1 = "7aa601f12708243987b88d1b453541a75e3d8c7a"
@@ -2560,6 +2584,7 @@ version = "1.4.0+3"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
+version = "1.2.12+3"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2582,6 +2607,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
+version = "5.1.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2604,10 +2630,12 @@ version = "1.3.7+1"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
+version = "1.41.0+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
+version = "17.4.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
