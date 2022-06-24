@@ -794,12 +794,17 @@ begin
 	"""
 end
 
+# ╔═╡ 726f0583-7814-4180-b0a7-6ee18892f869
+md"""
+todo: It would be good to have a table of values here as well...
+"""
+
 # ╔═╡ 52d7e225-c64e-4e91-98f1-ac9753c0ac82
 Tstep_Dbcs = ([T0+TTl, xaTl, pTl],[T0+TTr, xaTr, pTr])
 
 # ╔═╡ 5ee11544-b6ca-44d2-9827-822bbb26147a
 function temperature_step_evolution(T_step)
-	tend = 5.0e5
+	tend = 1.0e7
 	#
 	control=VoronoiFVM.NewtonControl()
     #control.damp_initial = 1e-5
@@ -879,9 +884,10 @@ function plot_evolution(sys, sol)
     PyPlot.xlabel("\$x\$")
     PyPlot.ylabel("\$\\log_{10}(t)\$")
 
-    Cmax = 1.0
-    xav = collect(0:Cmax / 100:Cmax)
-    xat = collect(0:Cmax / 8:Cmax)
+    Cmax = maximum(xa)
+	Cmin = minimum(xa)
+    xav = collect(Cmin:(Cmax-Cmin) / 100:Cmax)
+    xat = collect(Cmin:(Cmax-Cmin) / 8:Cmax)
     #
     PyPlot.subplot(132)
     PyPlot.gca().get_yaxis().set_visible(false)
@@ -1490,6 +1496,7 @@ version = "0.5.10"
 [[deps.Downloads]]
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+version = "1.6.0"
 
 [[deps.DualNumbers]]
 deps = ["Calculus", "NaNMath", "SpecialFunctions"]
@@ -1555,6 +1562,9 @@ deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "9267e5f50b0e12fdfd5a2455534345c4cf2c7f7a"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.14.0"
+
+[[deps.FileWatching]]
+uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
@@ -2382,7 +2392,6 @@ uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "1feb45f88d133a655e001435632f019a9a1bcdb6"
 uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
-version = "0.1.1"
 
 [[deps.TermInterface]]
 git-tree-sha1 = "7aa601f12708243987b88d1b453541a75e3d8c7a"
@@ -2775,6 +2784,7 @@ version = "0.9.1+5"
 # ╠═5ee11544-b6ca-44d2-9827-822bbb26147a
 # ╠═0463bbc2-55f4-48c8-a11d-47dd04a58adc
 # ╟─820c01b0-70d3-4ff2-a936-a373ec51b16f
+# ╠═726f0583-7814-4180-b0a7-6ee18892f869
 # ╠═52d7e225-c64e-4e91-98f1-ac9753c0ac82
 # ╟─16daab72-3736-48db-a98d-004b572c6272
 # ╠═32266f89-abde-42cb-b14d-5c339948c3ba
