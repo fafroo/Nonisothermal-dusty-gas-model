@@ -857,9 +857,6 @@ plot_ss2(sys_evol,sol_evol.u[end], sol_stdy,t1="evolution-end",t2="steady")
 # ╔═╡ 8cc29824-126b-4262-b3b3-32e0566ea439
 relative_error = maximum((sol_evol.u[end] .- sol_stdy)./sol_stdy)
 
-# ╔═╡ e40bcd4a-ca0f-4a77-b1da-42d84cf1e6e0
- mysavefig(figname)=PyPlot.savefig(figname);
-
 # ╔═╡ c3bf6d67-7f82-43ae-aac7-c8ea5e9a0296
 gridfunc(X, T, U) = (X, log10.(T .+ 1.0e-20), transpose(reshape(U, length(X), length(T))));
 
@@ -936,7 +933,6 @@ function plot_evolution(sys, sol)
     cax.axis("off")
 	fig2.colorbar(cntxa, ax=cax, ticks=xat, boundaries=xav, label="\$x_{a}\$") 
 	
-	mysavefig("f2.svg")
 	fig2
 end
 
@@ -2775,7 +2771,6 @@ version = "0.9.1+5"
 # ╟─16daab72-3736-48db-a98d-004b572c6272
 # ╠═32266f89-abde-42cb-b14d-5c339948c3ba
 # ╠═8cc29824-126b-4262-b3b3-32e0566ea439
-# ╠═e40bcd4a-ca0f-4a77-b1da-42d84cf1e6e0
 # ╠═576bdecb-bae4-4976-87ca-e149124b153f
 # ╠═c3bf6d67-7f82-43ae-aac7-c8ea5e9a0296
 # ╠═722612e3-a57b-4242-ba7d-316ad00613c5
